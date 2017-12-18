@@ -9,6 +9,9 @@ import {Constructor, instantiateClass, ResolutionSession} from './resolver';
 import {isPromise} from './promise-helper';
 import {Provider} from './provider';
 
+import * as debugModule from 'debug';
+const debug = debugModule('loopback:context:binding');
+
 // tslint:disable-next-line:no-any
 export type BoundValue = any;
 
@@ -261,6 +264,10 @@ export class Binding {
     ctx: Context,
     session?: ResolutionSession,
   ): BoundValue | Promise<BoundValue> {
+    /* istanbul ignore if */
+    if (debug.enabled) {
+      debug('Get value for binding %s', this.key);
+    }
     // First check cached value for non-transient
     if (this._cache !== undefined) {
       if (this.scope === BindingScope.SINGLETON) {
@@ -356,6 +363,10 @@ export class Binding {
    * ```
    */
   to(value: BoundValue): this {
+    /* istanbul ignore if */
+    if (debug.enabled) {
+      debug('Bind %s to constant:', this.key, value);
+    }
     this.type = BindingType.CONSTANT;
     this._getValue = () => value;
     return this;
@@ -380,6 +391,10 @@ export class Binding {
    * ```
    */
   toDynamicValue(factoryFn: () => BoundValue | Promise<BoundValue>): this {
+    /* istanbul ignore if */
+    if (debug.enabled) {
+      debug('Bind %s to dynamic value:', this.key, factoryFn);
+    }
     this.type = BindingType.DYNAMIC_VALUE;
     this._getValue = ctx => factoryFn();
     return this;
@@ -402,6 +417,10 @@ export class Binding {
    * @param provider The value provider to use.
    */
   public toProvider<T>(providerClass: Constructor<Provider<T>>): this {
+    /* istanbul ignore if */
+    if (debug.enabled) {
+      debug('Bind %s to provider %s', this.key, providerClass.name);
+    }
     this.type = BindingType.PROVIDER;
     this._getValue = (ctx, session) => {
       const providerOrPromise = instantiateClass<Provider<T>>(
@@ -422,6 +441,10 @@ export class Binding {
    *   we can resolve them from the context.
    */
   toClass<T>(ctor: Constructor<T>): this {
+    /* istanbul ignore if */
+    if (debug.enabled) {
+      debug('Bind %s to class %s', this.key, ctor.name);
+    }
     this.type = BindingType.CLASS;
     this._getValue = (ctx, session) => instantiateClass<T>(ctor, ctx!, session);
     this.valueConstructor = ctor;
