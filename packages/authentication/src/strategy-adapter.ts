@@ -4,7 +4,8 @@
 // License text available at https://opensource.org/licenses/MIT
 import {HttpErrors, ParsedRequest} from '@loopback/rest';
 import {Strategy} from 'passport';
-import {UserProfile} from './providers/authenticate';
+import {UserProfile, Authenticator} from './authentication';
+import {AuthenticationMetadata} from '../index';
 
 /**
  * Shimmed Request to satisfy express requirements of passport strategies.
@@ -32,7 +33,7 @@ export class ShimRequest {
  *   3. provides state methods to the strategy instance
  * see: https://github.com/jaredhanson/passport
  */
-export class StrategyAdapter {
+export class StrategyAdapter implements Authenticator {
   /**
    * @param strategy instance of a class which implements a passport-strategy;
    * @description http://passportjs.org/
@@ -46,7 +47,7 @@ export class StrategyAdapter {
    *     3. authenticate using the strategy
    * @param req {http.ServerRequest} The incoming request.
    */
-  authenticate(req: ParsedRequest) {
+  authenticate(req: ParsedRequest, metadata?: AuthenticationMetadata) {
     const shimReq = new ShimRequest(req);
     return new Promise<UserProfile>((resolve, reject) => {
       // create a prototype chain of an instance of a passport strategy
@@ -68,7 +69,11 @@ export class StrategyAdapter {
       };
 
       // authenticate
-      strategy.authenticate(shimReq);
+      strategy.authenticate(shimReq, metadata && metadata.options);
     });
+  }
+
+  isSupported(strategy: string) {
+    return strategy.startsWith('passport:');
   }
 }
