@@ -21,7 +21,7 @@ module.exports = class BaseGenerator extends Generator {
    * Subclasses can extend _setupGenerator() to set up the generator
    */
   _setupGenerator() {
-    // No operation
+    this.artifactInfo.rootDir = 'src';
   }
 
   /**
