@@ -1,5 +1,5 @@
 {
-  "name": "@loopback/openapi-v2",
+  "name": "@loopback/openapi-v3",
   "version": "4.0.0-alpha.2",
   "description": "Processes openapi v2 related metadata",
   "engines": {
@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "@loopback/context": "^4.0.0-alpha.22",
-    "@loopback/openapi-spec": "^4.0.0-alpha.17",
+    "@loopback/openapi-spec-types": "^4.0.0-alpha.17",
     "lodash": "^4.17.4"
   }
 }
