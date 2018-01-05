@@ -7,6 +7,7 @@ import {Context, Binding, BindingScope, Constructor} from '@loopback/context';
 import {Server} from './server';
 import {Component, mountComponent} from './component';
 import {CoreBindings} from './keys';
+import {resolve} from 'path';
 
 /**
  * Application is the container for various types of artifacts, such as
@@ -61,9 +62,95 @@ export class Application extends Context {
    */
   controller(controllerCtor: ControllerClass, name?: string): Binding {
     name = name || controllerCtor.name;
-    return this.bind(`controllers.${name}`)
+    return this.bind(`${CoreBindings.CONTROLLERS}.${name}`)
       .toClass(controllerCtor)
-      .tag('controller');
+      .tag(CoreBindings.CONTROLLERS_TAG);
+  }
+
+  /**
+   * Register a booter class with this application.
+   *
+   * @param booterCls {Function} The booter class (constructor function).
+   * @param {string=} name Optional booter name, defaults to the class name.
+   * @return {Binding} The newly created binding, you can use the reference to
+   * further modify the binding, e.g. lock the value to prevent further
+   * modifications.
+   *
+   * ```ts
+   * class MyBooter implements Booter {}
+   * app.booter(MyBooter);
+   * ```
+   */
+  booter<T extends Booter>(booterCls: Constructor<T>, name?: string): Binding {
+    name = name || booterCls.name;
+    return this.bind(`${CoreBindings.BOOTERS}.${name}`)
+      .toClass(booterCls)
+      .tag(CoreBindings.BOOTERS_TAG)
+      .inScope(BindingScope.SINGLETON);
+  }
+
+  /**
+   * Register an array of booter classes with this application.
+   * Each Booter added in this way will automatically be named based on the
+   * class constructor name with the "booters." prefix.
+   *
+   * If you wish to control the binding keys for particular booter instances,
+   * use the app.booter function instead.
+   *
+   * @param {Constructor<Booter>[]} booterArr {Function} An array of Booter
+   * constructors.
+   * @return {Binding[]} An array of bindings for the registered Booter classes.
+   *
+   * ```ts
+   * app.booters([ControllerBooter, RepositoryBooter]);
+   * ```
+   */
+  booters<T extends Booter>(booterArr: Constructor<T>[]): Binding[] {
+    return booterArr.map(booterCls => this.booter(booterCls));
+  }
+
+  /**
+   * Function is responsible for calling all registered Booter classes that
+   * are bound to the Application instance. Each phase of an instance must
+   * complete before the next phase is started.
+   * @param {BootOptions} bootOptions Options for boot. Bound for Booters to
+   * receive via Dependency Injection.
+   */
+  async boot(bootOptions?: BootOptions) {
+    // Taranveer: Getting a might be undefined error here even though
+    // this.options is guaranteed to exist via Constructor. Adding this
+    // line to overcome error by tricking the Compiler.
+    if (!this.options) this.options = {};
+    if (bootOptions) this.options.boot = bootOptions;
+
+    // Make sure boot.projectRoot is set by user!
+    if (!this.options.boot || !this.options.boot.projectRoot) {
+      throw new Error(
+        `No projectRoot provided for boot. Please set options.boot.projectRoot.`,
+      );
+    }
+
+    // Resolve path to projectRoot
+    this.options.boot.projectRoot = resolve(this.options.boot.projectRoot);
+
+    // Bind Boot Config for Booters
+    this.bind(CoreBindings.BOOT_CONFIG).to(this.options.boot);
+
+    // Find Bindings and get instance
+    const bindings = this.findByTag(CoreBindings.BOOTERS_TAG);
+    let booterInsts = bindings.map(binding => this.getSync(binding.key));
+
+    // Run phases of booters
+    for (const phase of BOOT_PHASES) {
+      for (const inst of booterInsts) {
+        if (inst[phase]) {
+          await inst[phase]();
+          console.log(`${inst.constructor.name} phase: ${phase} complete.`);
+        } else {
+          console.log(`${inst.constructor.name} phase: ${phase} missing.`);
+        }
+      }
+    }
   }
 
   /**
@@ -241,3 +328,22 @@ export interface ApplicationConfig {
 
 // tslint:disable-next-line:no-any
 export type ControllerClass = Constructor<any>;
+
+/**
+ * A Booter class interface
+ */
+export interface Booter {
+  config?(): void;
+  discover?(): void;
+  boot?(): void;
+}
+
+// An Array of Boot Phases available
+export const BOOT_PHASES = ['config', 'discover', 'boot'];
+
+// Boot Options Type. Must provide a projectRoot!
+export type BootOptions = {
+  projectRoot: string;
+  // tslint:disable-next-line:no-any
+  [prop: string]: any;
+};

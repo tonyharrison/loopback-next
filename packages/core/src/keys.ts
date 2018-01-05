@@ -23,6 +23,15 @@ export namespace CoreBindings {
    */
   export const SERVERS = 'servers';
 
+  // Binding Constant prefixes / tags
+  export const BOOTERS = 'booters';
+  export const BOOTERS_TAG = 'booter';
+  export const CONTROLLERS = 'controllers';
+  export const CONTROLLERS_TAG = 'controller';
+
+  // Binding Key for Boot Config
+  export const BOOT_CONFIG = 'application.config.boot';
+
   // controller
   /**
    * Binding key for the controller class resolved in the current request
