@@ -12,11 +12,11 @@ import {
   OpenApiSpec,
   createEmptyApiSpec,
   OperationObject,
-} from '@loopback/openapi-spec';
+} from '@loopback/openapi-spec-types';
 import {ServerRequest, ServerResponse, createServer} from 'http';
 import * as Http from 'http';
 import {Application, CoreBindings, Server} from '@loopback/core';
-import {getControllerSpec} from '@loopback/openapi-v2';
+import {getControllerSpec} from '@loopback/openapi-v3';
 import {HttpHandler} from './http-handler';
 import {DefaultSequence, SequenceHandler, SequenceFunction} from './sequence';
 import {

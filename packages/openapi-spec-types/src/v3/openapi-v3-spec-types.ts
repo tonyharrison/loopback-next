@@ -293,7 +293,7 @@ export function createEmptyApiSpec(): OpenApiSpec {
     paths: {},
     servers: [
         {
-            "url": "{protocal}://{host}:{port}{basePath}",
+            "url": "{protocal}://{hostname}:{port}{basePath}",
             "description": "The default LoopBack rest server",
             "variables": {
                 "protocal": {
@@ -305,7 +305,7 @@ export function createEmptyApiSpec(): OpenApiSpec {
                 "port": {
                     "default": 3000
                 },
-                "host": {
+                "hostname": {
                     "default": "localhost"
                 }
             }
