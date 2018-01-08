@@ -16,6 +16,10 @@ import {
 import {ResolutionSession} from '../../src/resolver';
 
 function instantiate<T>(ctor: Constructor<T>, ctx: Context) {
+  /**
+   * Convert rejection errors back to rejected promises so that we can use
+   * try - catch for the tests
+   */
   return RejectionError.reject(instantiateClass<T>(ctor, ctx));
 }
 
@@ -98,23 +102,25 @@ describe('constructor injection', () => {
 
   it('reports circular dependencies of two bindings', () => {
     const context = new Context();
-
-    // Declare two interfaces so that they can be used for typing
     interface XInterface {}
     interface YInterface {}
 
     class XClass implements XInterface {
-      constructor(@inject('y') public y: YInterface) {}
+      @inject('y') public y: YInterface;
     }
 
     class YClass implements YInterface {
-      constructor(@inject('x') public x: XInterface) {}
+      @inject('x') public x: XInterface;
     }
 
     context.bind('x').toClass(XClass);
     context.bind('y').toClass(YClass);
-    expect(() => context.getSync('x')).to.throw(/Circular dependency/);
-    expect(() => context.getSync('y')).to.throw(/Circular dependency/);
+    expect(() => context.getSync('x')).to.throw(
+      "Circular dependency detected on path 'x --> y --> x'",
+    );
+    expect(() => context.getSync('y')).to.throw(
+      "Circular dependency detected on path 'y --> x --> y'",
+    );
   });
 
   it('reports circular dependencies of three bindings', () => {
@@ -140,9 +146,15 @@ describe('constructor injection', () => {
     context.bind('x').toClass(XClass);
     context.bind('y').toClass(YClass);
     context.bind('z').toClass(ZClass);
-    expect(() => context.getSync('x')).to.throw(/Circular dependency/);
-    expect(() => context.getSync('y')).to.throw(/Circular dependency/);
-    expect(() => context.getSync('z')).to.throw(/Circular dependency/);
+    expect(() => context.getSync('x')).to.throw(
+      "Circular dependency detected on path 'x --> y --> z --> x'",
+    );
+    expect(() => context.getSync('y')).to.throw(
+      "Circular dependency detected on path 'y --> z --> x --> y'",
+    );
+    expect(() => context.getSync('z')).to.throw(
+      "Circular dependency detected on path 'z --> x --> y --> z'",
+    );
   });
 
   it('will not report circular dependencies if two bindings', () => {
@@ -327,24 +339,6 @@ describe('property injection', () => {
     const t = instantiate(TestClass, ctx) as TestClass;
     expect(t.fooBar).to.eql('FOO:BAR');
   });
-
-  it('reports circular dependencies of two bindings', () => {
-    const context = new Context();
-    class XClass {
-      // tslint:disable-next-line:no-any
-      @inject('y') public y: any;
-    }
-
-    class YClass {
-      // tslint:disable-next-line:no-any
-      @inject('x') public x: any;
-    }
-
-    context.bind('x').toClass(XClass);
-    context.bind('y').toClass(YClass);
-    expect(() => context.getSync('x')).to.throw(/Circular dependency/);
-    expect(() => context.getSync('y')).to.throw(/Circular dependency/);
-  });
 });
 
 describe('async property injection', () => {
@@ -464,7 +458,6 @@ describe('sync constructor & async property injection', () => {
 });
 
 function customDecorator(def: Object) {
-  // tslint:disable-next-line:no-any
   return inject('foo', def, (c: Context, injection: Injection) => {
     const barKey = injection.metadata && injection.metadata.x;
     const b = c.getSync(barKey);
@@ -474,7 +467,6 @@ function customDecorator(def: Object) {
 }
 
 function customAsyncDecorator(def: Object) {
-  // tslint:disable-next-line:no-any
   return inject('foo', def, async (c: Context, injection: Injection) => {
     const barKey = injection.metadata && injection.metadata.x;
     const b = await c.get(barKey);
