@@ -96,9 +96,7 @@ export enum BindingType {
   PROVIDER = 'Provider',
 }
 
-export type BindingOptions =
-  | {[name: string]: BoundValue}
-  | Promise<{[name: string]: BoundValue}>;
+export type BindingOptions = ValueOrPromise<{[name: string]: BoundValue}>;
 
 type GetValueFunction<T> = (
   ctx?: Context,
@@ -321,25 +319,46 @@ export class Binding {
    * @param options Options object or a promise
    */
   withOptions(options: BindingOptions): this {
+    this.options = Binding.mergeOptions(this.options, options);
+    return this;
+  }
+
+  /**
+   * Merge options
+   * @param existingOptions
+   * @param options
+   */
+  private static mergeOptions(
+    existingOptions: BindingOptions,
+    options: BindingOptions,
+  ) {
     if (isPromise(options)) {
-      if (isPromise(this.options)) {
-        const p = this.options as Promise<{[name: string]: BoundValue}>;
-        this.options = Promise.all([p, options]).then(objs =>
+      if (isPromise(existingOptions)) {
+        // Both are promises
+        const p = existingOptions as Promise<{
+          [name: string]: BoundValue;
+        }>;
+        existingOptions = Promise.all([p, options]).then(objs =>
           Object.assign({}, objs[0], objs[1]),
         );
       } else {
-        const obj = this.options;
-        this.options = options.then(newOpts => Object.assign(obj, newOpts));
+        // The existing value is not a promise while the new one is
+        const obj = existingOptions;
+        existingOptions = options.then(newOpts => Object.assign(obj, newOpts));
       }
     } else {
-      if (isPromise(this.options)) {
-        const p = this.options as Promise<{[name: string]: BoundValue}>;
-        this.options = p.then(opts => Object.assign({}, opts, options));
+      if (isPromise(existingOptions)) {
+        // The existing value is a promise while the new one is not
+        const p = existingOptions as Promise<{
+          [name: string]: BoundValue;
+        }>;
+        existingOptions = p.then(opts => Object.assign({}, opts, options));
       } else {
-        Object.assign(this.options, options);
+        // Both are not promises
+        existingOptions = Object.assign(existingOptions, options);
       }
     }
-    return this;
+    return existingOptions;
   }
 
   /**
