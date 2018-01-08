@@ -213,15 +213,30 @@ export namespace inject {
    * expect(store2.optionY).to.eql('b');
    * ```
    *
-   * @param bindingKey Optional property path of the option. If is `''` or not
+   * @param optionPath Optional property path of the option. If is `''` or not
    * present, the `options` object will be returned.
    * @param metadata Optional metadata to help the injection
    */
   export const options = function injectOptions(
-    bindingKey?: string,
+    optionPath?: string,
     metadata?: Object,
   ) {
-    return inject(bindingKey || '', metadata, resolveAsOptions);
+    optionPath = optionPath || '';
+    /**
+     * Normalize the optionPath to be separated by '.'. Possible values can be:
+     * - '' (the whole options object)
+     * - 'myOption' (myOption value)
+     * - '#myOption' (myOption value)
+     * - 'myOption.prop1' (myOption.prop1 value)
+     * - 'myOption#prop1' (myOption.prop1 value)
+     */
+    if (optionPath.startsWith('#')) {
+      // Remove leading `#`
+      optionPath = optionPath.substring(1);
+    }
+    optionPath = optionPath.replace(/#/g, '.');
+    metadata = Object.assign({optionPath}, metadata);
+    return inject('', metadata, resolveAsOptions);
   };
 
   /**
@@ -271,12 +286,7 @@ function resolveAsOptions(
     return undefined;
   }
 
-  let path = injection.bindingKey;
-  if (path.startsWith('#')) {
-    // Remove leading `#`
-    path = path.substring(1);
-  }
-  path = path.replace(/#/g, '.');
+  const path = injection.metadata!.optionPath;
 
   let boundValue = RejectionError.catch(session.binding.options);
   if (isPromise(boundValue)) {
