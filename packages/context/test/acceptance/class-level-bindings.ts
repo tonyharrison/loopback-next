@@ -252,13 +252,13 @@ describe('Context bindings - Injecting dependencies of classes', () => {
     ctx
       .bind('store')
       .toClass(Store)
-      .withOptions({x: Promise.reject('invalid')});
+      .withOptions({x: Promise.reject(new Error('invalid'))});
 
     try {
       await ctx.get('store');
       throw new Error('the test should fail');
     } catch (e) {
-      expect(e).to.eql('invalid');
+      expect(e.message).to.eql('invalid');
     }
   });
 
@@ -474,13 +474,13 @@ describe('Context bindings - Injecting dependencies of classes', () => {
       .tag('store:location');
     ctx
       .bind('store.locations.sj')
-      .to(Promise.reject('Bad'))
+      .to(Promise.reject(new Error('Bad')))
       .tag('store:location');
     try {
       await ctx.get('store');
       throw new Error('An error should have been thrown');
     } catch (e) {
-      expect(e).to.eql('Bad');
+      expect(e.message).to.eql('Bad');
     }
   });
 
