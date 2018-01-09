@@ -459,6 +459,59 @@ describe('async constructor & sync property injection', () => {
   });
 });
 
+describe('async constructor injection with errors', () => {
+  let ctx: Context;
+
+  before(function() {
+    ctx = new Context();
+    ctx.bind('foo').toDynamicValue(
+      () =>
+        new Promise((resolve, reject) => {
+          setImmediate(() => {
+            reject(new Error('foo: error'));
+          });
+        }),
+    );
+  });
+
+  it('resolves properties and constructor arguments', async () => {
+    class TestClass {
+      constructor(@inject('foo') public foo: string) {}
+    }
+
+    try {
+      await instantiateClass(TestClass, ctx);
+      throw new Error('instantiateClass should have failed');
+    } catch (e) {
+      expect(e.message).to.eql('foo: error');
+    }
+  });
+});
+
+describe('async property injection with errors', () => {
+  let ctx: Context;
+
+  before(function() {
+    ctx = new Context();
+    ctx.bind('bar').toDynamicValue(async () => {
+      throw new Error('bar: error');
+    });
+  });
+
+  it('resolves properties and constructor arguments', async () => {
+    class TestClass {
+      @inject('bar') bar: string;
+    }
+
+    try {
+      await instantiateClass(TestClass, ctx);
+      throw new Error('instantiateClass should have failed');
+    } catch (e) {
+      expect(e.message).to.eql('bar: error');
+    }
+  });
+});
+
 describe('sync constructor & async property injection', () => {
   let ctx: Context;
 
