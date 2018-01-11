@@ -290,12 +290,13 @@ describe('async constructor injection with errors', () => {
 
   before(function() {
     ctx = new Context();
-    ctx.bind('foo').to(
-      new Promise((resolve, reject) => {
-        setImmediate(() => {
-          reject(new Error('foo: error'));
-        });
-      }),
+    ctx.bind('foo').toDynamicValue(
+      () =>
+        new Promise((resolve, reject) => {
+          setImmediate(() => {
+            reject(new Error('foo: error'));
+          });
+        }),
     );
   });
 
