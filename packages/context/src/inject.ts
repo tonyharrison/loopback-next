@@ -11,6 +11,7 @@ import {
 } from '@loopback/metadata';
 import {BoundValue, ValueOrPromise} from './binding';
 import {Context} from './context';
+import {isPromise} from './is-promise';
 
 const PARAMETERS_KEY = 'inject:parameters';
 const PROPERTIES_KEY = 'inject:properties';
@@ -165,6 +166,22 @@ export namespace inject {
   ) {
     return inject(bindingKey, metadata, resolveAsSetter);
   };
+
+  /**
+   * Inject an array of values by a tag
+   * @param bindingTag Tag name or regex
+   * @example
+   * ```ts
+   * class AuthenticationManager {
+   *   constructor(
+   *     @inject.tag('authentication.strategy') public strategies: Strategy[],
+   *   ) { }
+   * }
+   * ```
+   */
+  export const tag = function injectTag(bindingTag: string | RegExp) {
+    return inject('', {tag: bindingTag}, resolveByTag);
+  };
 }
 
 function resolveAsGetter(ctx: Context, injection: Injection) {
@@ -197,6 +214,31 @@ export function describeInjectedArguments(
     method,
   );
   return meta || [];
+}
+
+function resolveByTag(ctx: Context, injection: Injection) {
+  const tag: string | RegExp = injection.metadata!.tag;
+  const bindings = ctx.findByTag(tag);
+  const values: BoundValue[] = new Array(bindings.length);
+
+  // A closure to set a value by index
+  const valSetter = (i: number) => (val: BoundValue) => (values[i] = val);
+
+  let asyncResolvers: PromiseLike<BoundValue>[] = [];
+  // tslint:disable-next-line:prefer-for-of
+  for (let i = 0; i < bindings.length; i++) {
+    const val = bindings[i].getValue(ctx);
+    if (isPromise(val)) {
+      asyncResolvers.push(val.then(valSetter(i)));
+    } else {
+      values[i] = val;
+    }
+  }
+  if (asyncResolvers.length) {
+    return Promise.all(asyncResolvers).then(vals => values);
+  } else {
+    return values;
+  }
 }
 
 /**

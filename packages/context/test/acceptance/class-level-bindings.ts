@@ -10,7 +10,7 @@ const INFO_CONTROLLER = 'controllers.info';
 
 describe('Context bindings - Injecting dependencies of classes', () => {
   let ctx: Context;
-  before('given a context', createContext);
+  beforeEach('given a context', createContext);
 
   it('injects constructor args', async () => {
     ctx.bind('application.name').to('CodeHub');
@@ -175,6 +175,95 @@ describe('Context bindings - Injecting dependencies of classes', () => {
 
     const resolved = await ctx.get('component');
     expect(resolved.config).to.equal('test-config');
+  });
+
+  it('injects values by tag', () => {
+    class Store {
+      constructor(@inject.tag('store:location') public locations: string[]) {}
+    }
+
+    ctx.bind('store').toClass(Store);
+    ctx
+      .bind('store.locations.sf')
+      .to('San Francisco')
+      .tag('store:location');
+    ctx
+      .bind('store.locations.sj')
+      .to('San Jose')
+      .tag('store:location');
+    const store: Store = ctx.getSync('store');
+    expect(store.locations).to.eql(['San Francisco', 'San Jose']);
+  });
+
+  it('injects values by tag regex', () => {
+    class Store {
+      constructor(
+        @inject.tag(/.+:location:sj/)
+        public locations: string[],
+      ) {}
+    }
+
+    ctx.bind('store').toClass(Store);
+    ctx
+      .bind('store.locations.sf')
+      .to('San Francisco')
+      .tag('store:location:sf');
+    ctx
+      .bind('store.locations.sj')
+      .to('San Jose')
+      .tag('store:location:sj');
+    const store: Store = ctx.getSync('store');
+    expect(store.locations).to.eql(['San Jose']);
+  });
+
+  it('injects empty values by tag if not found', () => {
+    class Store {
+      constructor(@inject.tag('store:location') public locations: string[]) {}
+    }
+
+    ctx.bind('store').toClass(Store);
+    const store: Store = ctx.getSync('store');
+    expect(store.locations).to.eql([]);
+  });
+
+  it('injects values by tag asynchronously', async () => {
+    class Store {
+      constructor(@inject.tag('store:location') public locations: string[]) {}
+    }
+
+    ctx.bind('store').toClass(Store);
+    ctx
+      .bind('store.locations.sf')
+      .to('San Francisco')
+      .tag('store:location');
+    ctx
+      .bind('store.locations.sj')
+      .toDynamicValue(async () => 'San Jose')
+      .tag('store:location');
+    const store: Store = await ctx.get('store');
+    expect(store.locations).to.eql(['San Francisco', 'San Jose']);
+  });
+
+  it('reports error when @inject.tag rejects a promise', async () => {
+    class Store {
+      constructor(@inject.tag('store:location') public locations: string[]) {}
+    }
+
+    ctx.bind('store').toClass(Store);
+    ctx
+      .bind('store.locations.sf')
+      .to('San Francisco')
+      .tag('store:location');
+    ctx
+      .bind('store.locations.sj')
+      .toDynamicValue(() => Promise.reject(new Error('Bad')))
+      .tag('store:location');
+    try {
+      await ctx.get('store');
+      throw new Error('An error should have been thrown');
+    } catch (e) {
+      expect(e.message).to.eql('Bad');
+    }
   });
 
   function createContext() {
